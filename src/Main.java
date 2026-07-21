@@ -1,88 +1,222 @@
-import modelos.Produto;
 import dao.ProdutoDao;
-import java.util.List; // Importar List para o método consultar()
+import modelos.Produto;
+
+import java.util.List;
+import java.util.Scanner;
 
 public class Main {
+
+    private static final Scanner scanner = new Scanner(System.in);
+
     public static void main(String[] args) {
-        // 1. Criar uma instância do ProdutoDao
         ProdutoDao produtoDao = new ProdutoDao();
+        int opcao;
 
-        // Variável para armazenar o produto salvo, inicializada como null
-        Produto produtoSalvo = null;
+        do {
+            exibirMenu();
+            opcao = lerInteiro("Escolha uma opção: ");
 
-        try {
-            // --- TESTE: SALVAR PRODUTO ---
-            System.out.println("--- TESTE: SALVAR PRODUTO ---");
-            Produto novoProduto = new Produto();
-            novoProduto.setNome("Camiseta Java");
-            novoProduto.setPreco(49.99);
-            novoProduto.setEstoque(100);
+            try {
+                switch (opcao) {
+                    case 1:
+                        cadastrarProduto(produtoDao);
+                        break;
 
-            produtoSalvo = produtoDao.salvar(novoProduto);
-            System.out.println("Produto salvo com sucesso no banco de dados:");
-            System.out.println(produtoSalvo);
+                    case 2:
+                        listarProdutos(produtoDao);
+                        break;
 
-            // --- TESTE: CONSULTAR PRODUTO POR ID ---
-            System.out.println("\n--- TESTE: CONSULTAR PRODUTO POR ID ---");
-            if (produtoSalvo != null && produtoSalvo.getId() != 0) {
-                Produto produtoConsultado = produtoDao.consultar(produtoSalvo.getId());
+                    case 3:
+                        consultarProduto(produtoDao);
+                        break;
 
-                if (produtoConsultado != null) {
-                    System.out.println("Produto consultado com sucesso:");
-                    System.out.println(produtoConsultado);
+                    case 4:
+                        alterarProduto(produtoDao);
+                        break;
+
+                    case 5:
+                        deletarProduto(produtoDao);
+                        break;
+
+                    case 0:
+                        System.out.println("Programa encerrado.");
+                        break;
+
+                    default:
+                        System.out.println("Opção inválida.");
+                }
+
+            } catch (RuntimeException e) {
+                System.err.println("Erro: " + e.getMessage());
+            }
+
+            if (opcao != 0) {
+                System.out.println("\nPressione ENTER para continuar...");
+                scanner.nextLine();
+            }
+
+        } while (opcao != 0);
+
+        scanner.close();
+    }
+
+    private static void exibirMenu() {
+        System.out.println("\n========== MENU DE PRODUTOS ==========");
+        System.out.println("1 - Cadastrar produto");
+        System.out.println("2 - Listar produtos");
+        System.out.println("3 - Consultar produto por ID");
+        System.out.println("4 - Alterar produto");
+        System.out.println("5 - Deletar produto");
+        System.out.println("0 - Sair");
+        System.out.println("======================================");
+    }
+
+    private static void cadastrarProduto(ProdutoDao produtoDao) {
+        System.out.println("\n--- CADASTRAR PRODUTO ---");
+
+        String nome = lerTexto("Nome: ");
+        double preco = lerDouble("Preço: ");
+        int estoque = lerInteiro("Estoque: ");
+
+        Produto produto = new Produto();
+        produto.setNome(nome);
+        produto.setPreco(preco);
+        produto.setEstoque(estoque);
+
+        Produto produtoSalvo = produtoDao.salvar(produto);
+
+        System.out.println("Produto cadastrado com sucesso!");
+        System.out.println(produtoSalvo);
+    }
+
+    private static void listarProdutos(ProdutoDao produtoDao) {
+        System.out.println("\n--- LISTA DE PRODUTOS ---");
+
+        List<Produto> produtos = produtoDao.consultar();
+
+        if (produtos.isEmpty()) {
+            System.out.println("Nenhum produto cadastrado.");
+            return;
+        }
+
+        for (Produto produto : produtos) {
+            System.out.println(produto);
+        }
+    }
+
+    private static void consultarProduto(ProdutoDao produtoDao) {
+        System.out.println("\n--- CONSULTAR PRODUTO ---");
+
+        int id = lerInteiro("Digite o ID do produto: ");
+
+        Produto produto = produtoDao.consultar(id);
+
+        if (produto == null) {
+            System.out.println("Produto não encontrado.");
+        } else {
+            System.out.println("Produto encontrado:");
+            System.out.println(produto);
+        }
+    }
+
+    private static void alterarProduto(ProdutoDao produtoDao) {
+        System.out.println("\n--- ALTERAR PRODUTO ---");
+
+        int id = lerInteiro("Digite o ID do produto: ");
+
+        Produto produto = produtoDao.consultar(id);
+
+        if (produto == null) {
+            System.out.println("Produto não encontrado.");
+            return;
+        }
+
+        System.out.println("Produto atual:");
+        System.out.println(produto);
+
+        String nome = lerTexto("Novo nome: ");
+        double preco = lerDouble("Novo preço: ");
+        int estoque = lerInteiro("Novo estoque: ");
+
+        produto.setNome(nome);
+        produto.setPreco(preco);
+        produto.setEstoque(estoque);
+
+        produtoDao.alterar(produto);
+
+        System.out.println("Produto alterado com sucesso!");
+        System.out.println(produtoDao.consultar(id));
+    }
+
+    private static void deletarProduto(ProdutoDao produtoDao) {
+        System.out.println("\n--- DELETAR PRODUTO ---");
+
+        int id = lerInteiro("Digite o ID do produto: ");
+
+        Produto produto = produtoDao.consultar(id);
+
+        if (produto == null) {
+            System.out.println("Produto não encontrado.");
+            return;
+        }
+
+        System.out.println("Produto que será deletado:");
+        System.out.println(produto);
+
+        String confirmacao = lerTexto("Confirma a exclusão? Digite S para sim ou N para não: ");
+
+        if (confirmacao.equalsIgnoreCase("s")) {
+            produtoDao.deletar(id);
+            System.out.println("Produto deletado com sucesso.");
+        } else {
+            System.out.println("Exclusão cancelada.");
+        }
+    }
+
+    private static String lerTexto(String mensagem) {
+        while (true) {
+            System.out.print(mensagem);
+            String valor = scanner.nextLine().trim();
+
+            if (!valor.isEmpty()) {
+                return valor;
+            }
+
+            System.out.println("O campo não pode ficar vazio.");
+        }
+    }
+
+    private static int lerInteiro(String mensagem) {
+        while (true) {
+            try {
+                System.out.print(mensagem);
+                return Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.println("Digite um número inteiro válido.");
+            }
+        }
+    }
+
+    private static double lerDouble(String mensagem) {
+        while (true) {
+            try {
+                System.out.print(mensagem);
+
+                String valor = scanner.nextLine()
+                        .trim()
+                        .replace(",", ".");
+
+                double numero = Double.parseDouble(valor);
+
+                if (numero < 0) {
+                    System.out.println("O valor não pode ser negativo.");
                 } else {
-                    System.out.println("Produto com ID " + produtoSalvo.getId() + " não encontrado.");
+                    return numero;
                 }
-            } else {
-                System.out.println("Não foi possível consultar o produto, pois ele não foi salvo ou não possui ID.");
+
+            } catch (NumberFormatException e) {
+                System.out.println("Digite um preço válido.");
             }
-
-            // --- TESTE: LISTAR TODOS OS PRODUTOS ---
-            System.out.println("\n--- TESTE: LISTAR TODOS OS PRODUTOS ---");
-            List<Produto> produtos = produtoDao.consultar();
-            if (produtos.isEmpty()) {
-                System.out.println("Nenhum produto cadastrado.");
-            } else {
-                System.out.println("Produtos cadastrados:");
-                for (Produto produto : produtos) {
-                    System.out.println(produto);
-                }
-            }
-
-            // --- TESTE: ALTERAR PRODUTO ---
-            System.out.println("\n--- TESTE: ALTERAR PRODUTO ---");
-            if (produtoSalvo != null && produtoSalvo.getId() != 0) {
-                produtoSalvo.setNome("Camiseta Java Atualizada");
-                produtoSalvo.setPreco(59.90);
-                produtoSalvo.setEstoque(80);
-
-                produtoDao.alterar(produtoSalvo);
-
-                System.out.println("Produto após alteração:");
-                Produto produtoAlterado = produtoDao.consultar(produtoSalvo.getId());
-                System.out.println(produtoAlterado);
-            } else {
-                System.out.println("Não foi possível alterar o produto, pois ele não foi salvo ou não possui ID.");
-            }
-
-            // --- TESTE: DELETAR PRODUTO ---
-            System.out.println("\n--- TESTE: DELETAR PRODUTO ---");
-            if (produtoSalvo != null && produtoSalvo.getId() != 0) {
-                produtoDao.deletar(produtoSalvo.getId());
-                // Tenta consultar para confirmar que foi deletado
-                Produto produtoDeletado = produtoDao.consultar(produtoSalvo.getId());
-                if (produtoDeletado == null) {
-                    System.out.println("Confirmação: Produto com ID " + produtoSalvo.getId() + " não encontrado após deleção.");
-                } else {
-                    System.out.println("Erro: Produto com ID " + produtoSalvo.getId() + " ainda existe após deleção.");
-                }
-            } else {
-                System.out.println("Não foi possível deletar o produto, pois ele não foi salvo ou não possui ID.");
-            }
-
-        } catch (RuntimeException e) {
-            System.err.println("Ocorreu um erro durante a execução: " + e.getMessage());
-            e.printStackTrace(); // Imprime o stack trace completo para depuração
         }
     }
 }
