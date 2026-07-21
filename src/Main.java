@@ -1,7 +1,9 @@
 import dao.ClienteDao;
 import dao.ProdutoDao;
+import dao.PedidoDao;
 import modelos.Cliente;
 import modelos.Produto;
+import modelos.Pedido;
 
 import java.util.List;
 import java.util.Scanner;
@@ -13,6 +15,7 @@ public class Main {
     public static void main(String[] args) {
         ProdutoDao produtoDao = new ProdutoDao();
         ClienteDao clienteDao = new ClienteDao();
+        PedidoDao pedidoDao = new PedidoDao();
 
         int opcao;
 
@@ -28,6 +31,10 @@ public class Main {
 
                     case 2:
                         menuClientes(clienteDao);
+                        break;
+
+                    case 3:
+                        menuPedidos(pedidoDao, clienteDao, produtoDao);
                         break;
 
                     case 0:
@@ -59,6 +66,7 @@ public class Main {
         System.out.println("==================================");
         System.out.println("1 - Menu de Produtos");
         System.out.println("2 - Menu de Clientes");
+        System.out.println("3 - Menu de Pedidos");
         System.out.println("0 - Sair");
         System.out.println("==================================");
     }
@@ -393,6 +401,281 @@ public class Main {
 
         if (confirmacao.equalsIgnoreCase("s")) {
             clienteDao.deletar(id);
+        } else {
+            System.out.println("Exclusão cancelada.");
+        }
+    }
+
+    // =========================================================
+// MENU DE PEDIDOS
+// =========================================================
+
+    private static void menuPedidos(
+            PedidoDao pedidoDao,
+            ClienteDao clienteDao,
+            ProdutoDao produtoDao
+    ) {
+        int opcao;
+
+        do {
+            System.out.println("\n==================================");
+            System.out.println("       MENU DE PEDIDOS");
+            System.out.println("==================================");
+            System.out.println("1 - Criar pedido");
+            System.out.println("2 - Listar pedidos");
+            System.out.println("3 - Consultar pedido por ID");
+            System.out.println("4 - Deletar pedido");
+            System.out.println("0 - Voltar");
+            System.out.println("==================================");
+
+            opcao = lerInteiro("Escolha uma opção: ");
+
+            try {
+                switch (opcao) {
+                    case 1:
+                        criarPedido(pedidoDao, clienteDao, produtoDao);
+                        break;
+
+                    case 2:
+                        listarPedidos(pedidoDao);
+                        break;
+
+                    case 3:
+                        consultarPedido(pedidoDao);
+                        break;
+
+                    case 4:
+                        deletarPedido(pedidoDao);
+                        break;
+
+                    case 0:
+                        System.out.println("Voltando ao menu principal...");
+                        break;
+
+                    default:
+                        System.out.println("Opção inválida.");
+                }
+
+            } catch (RuntimeException e) {
+                System.err.println("Erro: " + e.getMessage());
+            }
+
+            if (opcao != 0) {
+                pausar();
+            }
+
+        } while (opcao != 0);
+    }
+
+// =========================================================
+// CRIAÇÃO DO PEDIDO E CARRINHO
+// =========================================================
+
+    private static void criarPedido(
+            PedidoDao pedidoDao,
+            ClienteDao clienteDao,
+            ProdutoDao produtoDao
+    ) {
+        System.out.println("\n--- CRIAR PEDIDO ---");
+
+        int idCliente = lerInteiro("Digite o ID do cliente: ");
+
+        Cliente cliente = clienteDao.consultar(idCliente);
+
+        if (cliente == null) {
+            System.out.println("Cliente não encontrado.");
+            return;
+        }
+
+        Pedido pedido = new Pedido();
+        pedido.setCliente(cliente);
+
+        int opcao;
+
+        do {
+            System.out.println("\n----------------------------------");
+            System.out.println("CLIENTE: " + cliente.getNome());
+            System.out.println("DATA: " + pedido.getData());
+            System.out.println("STATUS: " + pedido.getStatus());
+            System.out.println("----------------------------------");
+            System.out.println("1 - Adicionar produto ao carrinho");
+            System.out.println("2 - Remover produto do carrinho");
+            System.out.println("3 - Visualizar carrinho");
+            System.out.println("4 - Finalizar pedido");
+            System.out.println("0 - Cancelar pedido");
+            System.out.println("----------------------------------");
+
+            opcao = lerInteiro("Escolha uma opção: ");
+
+            try {
+                switch (opcao) {
+                    case 1:
+                        adicionarProdutoAoCarrinho(pedido, produtoDao);
+                        break;
+
+                    case 2:
+                        removerProdutoDoCarrinho(pedido);
+                        break;
+
+                    case 3:
+                        mostrarCarrinho(pedido);
+                        break;
+
+                    case 4:
+                        pedido.finalizarPedido();
+                        pedidoDao.salvar(pedido);
+
+                        System.out.println(
+                                "Pedido finalizado e salvo com sucesso!"
+                        );
+
+                        return;
+
+                    case 0:
+                        System.out.println("Pedido cancelado.");
+                        return;
+
+                    default:
+                        System.out.println("Opção inválida.");
+                }
+
+            } catch (RuntimeException e) {
+                // Se o salvamento falhar depois da finalização,
+                // permite continuar trabalhando com o pedido.
+                pedido.setStatus(Pedido.ABERTO);
+                System.err.println("Erro: " + e.getMessage());
+            }
+
+        } while (opcao != 0);
+    }
+
+    private static void adicionarProdutoAoCarrinho(
+            Pedido pedido,
+            ProdutoDao produtoDao
+    ) {
+        System.out.println("\n--- ADICIONAR PRODUTO ---");
+
+        int idProduto = lerInteiro("Digite o ID do produto: ");
+
+        Produto produto = produtoDao.consultar(idProduto);
+
+        if (produto == null) {
+            System.out.println("Produto não encontrado.");
+            return;
+        }
+
+        pedido.adicionarNoCarrinho(produto);
+
+        System.out.println("Produto adicionado ao carrinho:");
+        System.out.println(produto);
+    }
+
+    private static void removerProdutoDoCarrinho(Pedido pedido) {
+        System.out.println("\n--- REMOVER PRODUTO ---");
+
+        if (pedido.getProdutos().isEmpty()) {
+            System.out.println("O carrinho está vazio.");
+            return;
+        }
+
+        mostrarCarrinho(pedido);
+
+        int idProduto = lerInteiro(
+                "Digite o ID do produto que deseja remover: "
+        );
+
+        boolean removido = pedido.removerDoCarrinho(idProduto);
+
+        if (removido) {
+            System.out.println("Produto removido do carrinho.");
+        } else {
+            System.out.println(
+                    "Esse produto não foi encontrado no carrinho."
+            );
+        }
+    }
+
+    private static void mostrarCarrinho(Pedido pedido) {
+        System.out.println("\n--- CARRINHO ---");
+
+        if (pedido.getProdutos().isEmpty()) {
+            System.out.println("O carrinho está vazio.");
+            return;
+        }
+
+        int numeroItem = 1;
+
+        for (Produto produto : pedido.getProdutos()) {
+            System.out.println(
+                    numeroItem +
+                            " - ID: " + produto.getId() +
+                            " | Nome: " + produto.getNome() +
+                            " | Preço: R$ " + produto.getPreco()
+            );
+
+            numeroItem++;
+        }
+
+        System.out.println(
+                "Total de itens: " + pedido.getProdutos().size()
+        );
+    }
+
+// =========================================================
+// CONSULTA E EXCLUSÃO DE PEDIDOS
+// =========================================================
+
+    private static void listarPedidos(PedidoDao pedidoDao) {
+        System.out.println("\n--- LISTA DE PEDIDOS ---");
+
+        List<Pedido> pedidos = pedidoDao.consultar();
+
+        if (pedidos.isEmpty()) {
+            System.out.println("Nenhum pedido cadastrado.");
+            return;
+        }
+
+        for (Pedido pedido : pedidos) {
+            System.out.println(pedido);
+        }
+    }
+
+    private static void consultarPedido(PedidoDao pedidoDao) {
+        System.out.println("\n--- CONSULTAR PEDIDO ---");
+
+        int id = lerInteiro("Digite o ID do pedido: ");
+
+        Pedido pedido = pedidoDao.consultar(id);
+
+        if (pedido == null) {
+            System.out.println("Pedido não encontrado.");
+        } else {
+            System.out.println("Pedido encontrado:");
+            System.out.println(pedido);
+        }
+    }
+
+    private static void deletarPedido(PedidoDao pedidoDao) {
+        System.out.println("\n--- DELETAR PEDIDO ---");
+
+        int id = lerInteiro("Digite o ID do pedido: ");
+
+        Pedido pedido = pedidoDao.consultar(id);
+
+        if (pedido == null) {
+            System.out.println("Pedido não encontrado.");
+            return;
+        }
+
+        System.out.println("Pedido que será deletado:");
+        System.out.println(pedido);
+
+        String confirmacao = lerTexto(
+                "Confirma a exclusão? Digite S para sim ou N para não: "
+        );
+
+        if (confirmacao.equalsIgnoreCase("s")) {
+            pedidoDao.deletar(id);
         } else {
             System.out.println("Exclusão cancelada.");
         }
